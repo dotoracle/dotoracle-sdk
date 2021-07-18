@@ -126,6 +126,16 @@ export class Pair {
     return token.equals(this.token0) ? this.reserve0 : this.reserve1
   }
 
+  public quote(inputAmount: BigintIsh, 
+              decimalsIn: number, 
+              decimalsOut: number
+    ): BigintIsh {
+    if (decimalsIn > decimalsOut) {
+      return JSBI.divide(inputAmount, JSBI.BigInt('10', decimalsIn - decimalsOut))
+    }
+    return JSBI.mul(inputAmount, JSBI.BigInt('10', decimalsOut - decimalsIn))
+  }
+
   public getOutputAmount(
     inputAmount: CurrencyAmount<Token>
   ): [CurrencyAmount<Token>, Pair] {
@@ -140,17 +150,13 @@ export class Pair {
     const outputReserve = this.reserveOf(
       inputAmount.currency.equals(this.token0) ? this.token1 : this.token0
     )
-    const inputAmountWithFee = JSBI.multiply(inputAmount.quotient, _997)
-    const numerator = JSBI.multiply(inputAmountWithFee, outputReserve.quotient)
-    const denominator = JSBI.add(
-      JSBI.multiply(inputReserve.quotient, _1000),
-      inputAmountWithFee
-    )
+    const inputAmountWithFee = JSBI.divide(JSBI.multiply(inputAmount.quotient, _997), _1000)
+    
     const outputAmount = CurrencyAmount.fromRawAmount(
       inputAmount.currency.equals(this.token0) ? this.token1 : this.token0,
-      JSBI.divide(numerator, denominator)
+      this.quote(inputAmountWithFee, inputReserve.currency.decimals, outputReserve.currency.decimals)
     )
-    if (JSBI.equal(outputAmount.quotient, ZERO)) {
+    if (outputAmount.greaterThan(outputReserve)) {
       throw new InsufficientInputAmountError()
     }
     return [
@@ -181,17 +187,12 @@ export class Pair {
     const inputReserve = this.reserveOf(
       outputAmount.currency.equals(this.token0) ? this.token1 : this.token0
     )
-    const numerator = JSBI.multiply(
-      JSBI.multiply(inputReserve.quotient, outputAmount.quotient),
-      _1000
-    )
-    const denominator = JSBI.multiply(
-      JSBI.subtract(outputReserve.quotient, outputAmount.quotient),
-      _997
-    )
+
+    const inputAmountAfterFee = this.quote(outputAmount, outputReserve.currency.decimals, inputReserve.currency.decimals)
+
     const inputAmount = CurrencyAmount.fromRawAmount(
       outputAmount.currency.equals(this.token0) ? this.token1 : this.token0,
-      JSBI.add(JSBI.divide(numerator, denominator), ONE)
+      JSBI.divide(JSBI.multiply(inputAmountAfterFee, _1000), _997)
     )
     return [
       inputAmount,
