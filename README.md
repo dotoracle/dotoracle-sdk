@@ -1,9 +1,5 @@
 # DotOracle SDK
 
-In-depth documentation on this SDK is available at [uniswap.org](https://uniswap.org/docs/v2/SDK/getting-started/).
-
-This modifies uniswap-sdk's UniswapV2Factory address.
-
 ## Running tests
 
 To run the tests, follow these steps. You must have at least node v10 and [yarn](https://yarnpkg.com/) installed.
