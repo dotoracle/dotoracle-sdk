@@ -2,8 +2,8 @@ import {
   FACTORY_ADDRESS,
   FIVE,
   MINIMUM_LIQUIDITY,
-  ONE,
   ZERO,
+  TEN,
   _1000,
   _997,
 } from '../constants'
@@ -126,14 +126,14 @@ export class Pair {
     return token.equals(this.token0) ? this.reserve0 : this.reserve1
   }
 
-  public quote(inputAmount: BigintIsh, 
+  public quote(inputAmount: JSBI, 
               decimalsIn: number, 
               decimalsOut: number
-    ): BigintIsh {
+    ): JSBI {
     if (decimalsIn > decimalsOut) {
-      return JSBI.divide(inputAmount, JSBI.BigInt('10', decimalsIn - decimalsOut))
+      return JSBI.divide(inputAmount, JSBI.exponentiate(TEN, JSBI.BigInt(decimalsIn - decimalsOut)))
     }
-    return JSBI.mul(inputAmount, JSBI.BigInt('10', decimalsOut - decimalsIn))
+    return JSBI.multiply(inputAmount, JSBI.exponentiate(TEN, JSBI.BigInt(decimalsOut - decimalsIn)))
   }
 
   public getOutputAmount(
@@ -188,7 +188,7 @@ export class Pair {
       outputAmount.currency.equals(this.token0) ? this.token1 : this.token0
     )
 
-    const inputAmountAfterFee = this.quote(outputAmount, outputReserve.currency.decimals, inputReserve.currency.decimals)
+    const inputAmountAfterFee = this.quote(outputAmount.quotient, outputReserve.currency.decimals, inputReserve.currency.decimals)
 
     const inputAmount = CurrencyAmount.fromRawAmount(
       outputAmount.currency.equals(this.token0) ? this.token1 : this.token0,
