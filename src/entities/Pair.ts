@@ -1,11 +1,11 @@
 import {
   FACTORY_ADDRESS,
   FIVE,
-  MINIMUM_LIQUIDITY,
   ZERO,
   TEN,
-  _1000,
+  _18,
   _997,
+  _1000,
 } from '../constants'
 import {
   InsufficientInputAmountError,
@@ -126,10 +126,7 @@ export class Pair {
     return token.equals(this.token0) ? this.reserve0 : this.reserve1
   }
 
-  public quote(inputAmount: JSBI, 
-              decimalsIn: number, 
-              decimalsOut: number
-    ): JSBI {
+  public quote(inputAmount: JSBI, decimalsIn: number, decimalsOut: number): JSBI {
     if (decimalsIn > decimalsOut) {
       return JSBI.divide(inputAmount, JSBI.exponentiate(TEN, JSBI.BigInt(decimalsIn - decimalsOut)))
     }
@@ -203,6 +200,14 @@ export class Pair {
     ]
   }
 
+  public computeLiquidityUnit(_reserve0: JSBI, _reserve1: JSBI, decimals0: number, decimals1: number): JSBI {
+    if (decimals0 > decimals1) {
+      return JSBI.add(_reserve0, JSBI.multiply(_reserve1, JSBI.exponentiate(TEN, JSBI.BigInt(decimals0 - decimals1))))
+    } else {
+      return JSBI.add(_reserve1, JSBI.multiply(_reserve0, JSBI.exponentiate(TEN, JSBI.BigInt(decimals1 - decimals0))))
+    }
+  }
+
   public getLiquidityMinted(
     totalSupply: CurrencyAmount<Token>,
     tokenAmountA: CurrencyAmount<Token>,
@@ -220,23 +225,25 @@ export class Pair {
       'TOKEN'
     )
 
+    const decimals0 = tokenAmountA.currency.decimals
+    const decimals1 = tokenAmountB.currency.decimals
+    const addedLiquidityUnit = this.computeLiquidityUnit(tokenAmountA.quotient, tokenAmountB.quotient, decimals0, decimals1)
+    const reserveLiquidityUnit = this.computeLiquidityUnit(this.reserve0.quotient, this.reserve1.quotient, decimals0, decimals1)
     let liquidity: JSBI
+
     if (JSBI.equal(totalSupply.quotient, ZERO)) {
-      liquidity = JSBI.subtract(
-        sqrt(JSBI.multiply(tokenAmounts[0].quotient, tokenAmounts[1].quotient)),
-        MINIMUM_LIQUIDITY
+      const biggerDecimals = decimals0 > decimals1 ? decimals0 : decimals1
+      liquidity = JSBI.divide(
+        JSBI.multiply(addedLiquidityUnit, JSBI.exponentiate(TEN, _18)),
+        JSBI.exponentiate(TEN, JSBI.BigInt(biggerDecimals))
       )
     } else {
-      const amount0 = JSBI.divide(
-        JSBI.multiply(tokenAmounts[0].quotient, totalSupply.quotient),
-        this.reserve0.quotient
+      liquidity = JSBI.divide(
+        JSBI.multiply(addedLiquidityUnit, totalSupply.quotient),
+        reserveLiquidityUnit
       )
-      const amount1 = JSBI.divide(
-        JSBI.multiply(tokenAmounts[1].quotient, totalSupply.quotient),
-        this.reserve1.quotient
-      )
-      liquidity = JSBI.lessThanOrEqual(amount0, amount1) ? amount0 : amount1
     }
+
     if (!JSBI.greaterThan(liquidity, ZERO)) {
       throw new InsufficientInputAmountError()
     }
