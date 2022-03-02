@@ -1,5 +1,8 @@
 {
-  "name": "dotoracle-sdk",
+  "name": "@dotoracle/sdk",
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "version": "0.0.10",
   "description": "🛠 An SDK for building applications on top of DotOracle.",
